@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" style="background-color: #ffffff;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- إجبار المتصفح على الوضع الفاتح لمنع الشاشة السوداء -->
+    <meta name="color-scheme" content="light">
+    <title>نظام الإحصاء وإدارة القضايا</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // منع الوضع الداكن تماماً في إطار العمل
+        tailwind.config = { darkMode: 'class' }
+    </script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <style>
+        body { font-family: 'Tajawal', sans-serif, system-ui; background-color: #f8fafc; color: #0f172a; margin: 0; }
+        .hidden { display: none !important; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        /* شاشة التحميل الآمنة */
+        #safe-boot-screen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; background-color: #ffffff; text-align: center; padding: 20px;
+        }
+        .loader-spinner {
+            width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top-color: #059669;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+
+    <!-- نظام التقاط الأخطاء المبكر -->
+    <script>
+        window.addEventListener('error', function(e) {
+            const errDiv = document.getElementById('boot-error-log');
+            if(errDiv) {
+                errDiv.innerHTML += '<br>⚠️ ' + (e.message || 'خطأ غير معروف في تحميل النظام');
+                errDiv.style.display = 'block';
+            }
+        });
+    </script>
+</head>
+<body>
+
+    <!-- 1. شاشة التحميل -->
+    <div id="safe-boot-screen">
+        <div class="loader-spinner"></div>
+        <h2 style="font-size: 22px; color: #059669; font-weight: bold; margin: 0 0 10px 0;">جاري تشغيل النظام...</h2>
+        <p style="color: #64748b; font-size: 14px; margin: 0;">يتم الآن الاتصال بالسحابة وتجهيز واجهة التطبيق.</p>
+        <div id="boot-error-log" style="display: none; margin-top: 20px; padding: 15px; background: #fff1f2; color: #e11d48; border-radius: 12px; font-size: 12px; font-weight: bold; text-align: right; max-width: 90%;"></div>
+    </div>
+
+    <!-- 2. واجهة التطبيق الرئيسية -->
+    <div id="app-wrapper" class="hidden fade-in flex-col min-h-screen pb-20 selection:bg-emerald-200">
+        
+        <!-- الإشعارات -->
+        <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-xl text-sm font-bold text-white hidden">
+            <i id="toast-icon" class="ph text-xl"></i>
+            <span id="toast-msg"></span>
+        </div>
+
+        <!-- شاشة تسجيل الدخول -->
+        <div id="view-login" class="flex flex-col justify-center items-center p-4 min-h-[90vh]">
+            <div class="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+                <div class="bg-emerald-600 p-8 text-center text-white">
+                    <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="ph ph-shield-check text-4xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-extrabold mb-1">نظام الإحصاء والقضايا</h1>
+                    <p class="text-emerald-100 text-sm">بوابة العمل المشتركة</p>
+                </div>
+                
+                <div class="p-6 sm:p-8 space-y-5">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-600 mb-2">أدخل رمز الدخول:</label>
+                        <input type="password" id="login-pin" inputmode="numeric" placeholder="••••" class="w-full text-center text-3xl tracking-[0.4em] font-extrabold py-4 rounded-2xl border-2 border-slate-200 focus:border-emerald-500 outline-none bg-slate-50 text-emerald-900 transition">
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="window.appendPin(1)" class="py-3 rounded-xl bg-slate-100 font-bold text-xl hover:bg-slate-200">1</button>
+                        <button onclick="window.appendPin(2)" class="py-3 rounded-xl bg-slate-100 font-bold text-xl hover:bg-slate-200">2</button>
+                        <button onclick="window.appendPin(3)" class="py-3 rounded-xl bg-slate-100 font-bold text-xl hover:bg-slate-200">3</button>
+                        <button onclick="window.appendPin(4)" class="py-3 rounded-xl bg-slate-100 font-bold text-xl hover:bg-slate-200">4</button>
+                        <button onclick="window.appendPin(5)" class="py-3 rounded-xl bg-slate-100 font-bold text-xl hover:bg-slate-200">5</button>
+                        <button onclick="window.appendPin(6)" class="py-3 rounded-xl bg-slate-100 font-bold text-xl hover:bg-slate-200">6</button>
+                        <button onclick="window.appendPin(7)" class="py-3 rounded-xl bg-slate-100 font-bold text-xl hover:bg-slate-200">7</button>
+                        <button onclick="window.appendPin(8)" class="py-3 rounded-xl bg-slate-100 font-bold text-xl hover:bg-slate-200">8</button>
+                        <button onclick="window.appendPin(9)" class="py-3 rounded-xl bg-slate-100 font-bold text-xl hover:bg-slate-200">9</button>
+                        <button onclick="window.clearPin()" class="py-3 rounded-xl bg-rose-50 text-rose-600 font-bold text-sm">مسح</button>
+                        <button onclick="window.appendPin(0)" class="py-3 rounded-xl bg-slate-100 font-bold text-xl hover:bg-slate-200">0</button>
+                        <button onclick="window.deletePin()" class="py-3 rounded-xl bg-amber-50 text-amber-700 font-bold text-sm">تراجع</button>
+                    </div>
+
+                    <div id="login-error" class="hidden p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold text-center border border-rose-200"></div>
+                    
+                    <button onclick="window.handleLogin()" class="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 transition mt-2">
+                        <i class="ph ph-sign-in text-xl"></i> دخول للبرنامج
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- واجهة لوحة التحكم بعد الدخول -->
+        <div id="view-dashboard" class="hidden flex-col flex-1">
+            <header class="bg-emerald-700 text-white sticky top-0 z-30 shadow-md">
+                <div class="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-md">
+                            <i class="ph ph-chart-line-up text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="font-extrabold text-base leading-tight">الإحصائيات والسجل</h1>
+                            <div class="text-[11px] text-emerald-100 mt-0.5">
+                                المدخل: <strong id="current-user-name"></strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div id="cloud-status" class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" title="متصل بالسحابة"></div>
+                        <button onclick="window.logout()" class="p-2 rounded-xl bg-white/10 hover:bg-rose-500 transition">
+                            <i class="ph ph-sign-out text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-emerald-800 px-4 py-2 flex justify-between items-center text-xs">
+                    <span class="text-emerald-100 font-bold flex items-center gap-1"><i class="ph ph-calendar-blank"></i> الفترة (هجري):</span>
+                    <select id="month-selector" onchange="window.changeMonth()" class="px-3 py-1.5 rounded-lg bg-emerald-900 text-white font-bold outline-none border border-emerald-700"></select>
+                </div>
+            </header>
+
+            <main class="max-w-4xl w-full mx-auto px-4 py-5 flex-1 space-y-5">
+                
+                <!-- الإحصائيات -->
+                <div id="section-dashboard" class="app-section space-y-4">
+                    <div id="stats-cards">
+                        <!-- تُعبأ برمجياً (ملخص القضايا + المؤشرات الهامة) -->
+                    </div>
+
+                    <!-- إحصائية تفصيلية لكل فرد -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 class="font-extrabold text-sm mb-4 text-slate-800">إحصائية القضايا لكل شخص</h3>
+                        <div id="member-stats-container" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- إدخال قضية -->
+                <div id="section-entry" class="app-section hidden">
+                    <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="bg-emerald-50 px-5 py-4 border-b border-emerald-100">
+                            <h2 class="font-extrabold text-emerald-900 flex items-center gap-2"><i class="ph ph-plus-circle text-xl"></i> تسجيل قضية جديدة</h2>
+                        </div>
+                        <form class="p-5 space-y-5" onsubmit="window.saveCase(event)">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1.5">رقم القضية <span class="text-rose-500">*</span></label>
+                                <input type="text" id="case-num" required placeholder="مثال: 1448/50" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 font-bold bg-slate-50 outline-none">
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-1.5">نوع القضية <span class="text-rose-500">*</span></label>
+                                    <select id="case-type" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold outline-none bg-white">
+                                        <option>حيازة</option><option>ترويج</option><option>نقل</option><option>تفاوض</option><option>استقبال</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-1.5">نوع المضبوط <span class="text-rose-500">*</span></label>
+                                    <select id="seized-type" onchange="window.handleSeizedChange()" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold outline-none bg-white">
+                                        <option>حبوب كبتاجون</option><option>برجبالين</option><option>شبو</option><option>حشيش</option><option>قات</option><option>أخرى</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <input type="text" id="seized-other" placeholder="حدد نوع المضبوط..." class="hidden w-full px-4 py-3 rounded-xl border border-slate-200 font-bold outline-none bg-white">
+
+                            <div class="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex gap-3">
+                                <div class="flex-1">
+                                    <label class="block text-sm font-bold text-slate-700 mb-1.5">الكمية <span class="text-rose-500">*</span></label>
+                                    <input type="number" id="case-qty" step="any" min="0.001" required placeholder="50" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 font-bold text-lg outline-none bg-white">
+                                </div>
+                                <div class="w-1/3">
+                                    <label class="block text-sm font-bold text-slate-700 mb-1.5">الوحدة</label>
+                                    <select id="case-unit" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold outline-none bg-white">
+                                        <option>حبة</option><option>جرام</option><option>كيلو</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold flex justify-center gap-2 items-center shadow-lg shadow-emerald-100 transition">
+                                <i class="ph ph-check-circle text-xl"></i> اعتماد القضية
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- سجل القضايا -->
+                <div id="section-records" class="app-section hidden space-y-4">
+                    <input type="text" id="search-input" oninput="window.renderRecords()" placeholder="ابحث في السجل..." class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm outline-none bg-white shadow-sm">
+                    <div id="records-container" class="space-y-3"></div>
+                </div>
+
+                <!-- إدارة الأعضاء -->
+                <div id="section-members" class="app-section hidden space-y-4">
+                    <button onclick="window.openAddMember()" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 transition text-white font-bold shadow-sm">إضافة عضو جديد (يدوياً)</button>
+                    <div id="members-container" class="grid grid-cols-1 gap-3"></div>
+                </div>
+                
+            </main>
+
+            <!-- شريط التنقل السفلي -->
+            <nav class="bg-white border-t border-slate-200 fixed bottom-0 w-full z-40 pb-safe">
+                <div class="max-w-4xl mx-auto flex justify-around p-1.5">
+                    <button onclick="window.switchTab('dashboard')" id="nav-dashboard" class="nav-btn flex flex-col items-center p-2 text-emerald-600 w-1/4 rounded-xl">
+                        <i class="ph ph-chart-line-up text-2xl"></i><span class="text-[10px] font-bold mt-1">الإحصائية</span>
+                    </button>
+                    <button onclick="window.switchTab('entry')" id="nav-entry" class="nav-btn flex flex-col items-center p-2 text-slate-400 w-1/4 rounded-xl">
+                        <i class="ph ph-plus-circle text-2xl"></i><span class="text-[10px] font-bold mt-1">إدخال</span>
+                    </button>
+                    <button onclick="window.switchTab('records')" id="nav-records" class="nav-btn flex flex-col items-center p-2 text-slate-400 w-1/4 rounded-xl">
+                        <i class="ph ph-folders text-2xl"></i><span class="text-[10px] font-bold mt-1">السجل</span>
+                    </button>
+                    <button onclick="window.switchTab('members')" id="nav-members" style="display: none;" class="nav-btn flex-col items-center p-2 text-slate-400 w-1/4 rounded-xl">
+                        <i class="ph ph-users text-2xl"></i><span class="text-[10px] font-bold mt-1">الأعضاء</span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- برمجة النظام الأساسية (Module) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        try {
+            // إخفاء شاشة التحميل وإظهار النظام
+            document.getElementById('safe-boot-screen').style.display = 'none';
+            document.getElementById('app-wrapper').classList.remove('hidden');
+            document.getElementById('app-wrapper').classList.add('flex');
+
+            const firebaseConfig = {
+                apiKey: "AIzaSyAxs8QRFfayaWKcneYCy8-bkbUIMBKnmB0",
+                authDomain: "statsapp-69a03.firebaseapp.com",
+                projectId: "statsapp-69a03",
+                storageBucket: "statsapp-69a03.firebasestorage.app",
+                messagingSenderId: "851890623530",
+                appId: "1:851890623530:web:785b691f5864c1725c9f53"
+            };
+
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            const artifactAppId = 'stats-app-prod-1';
+
+            const state = {
+                currentUser: null,
+                members: [{ id: 'admin', name: 'مدير النظام', pin: '0813', role: 'admin' }],
+                cases: [],
+                activeMonth: ''
+            };
+            let isCloudConnected = false;
+
+            const formatQty = (n) => Number(n).toLocaleString('en-US', {maximumFractionDigits: 2});
+            
+            // توليد الشهر الهجري الحالي
+            const getCurrentHijriMonth = () => {
+                try {
+                    const parts = new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', { year: 'numeric', month: '2-digit' }).formatToParts(new Date());
+                    const y = parts.find(p => p.type === 'year').value.split(' ')[0];
+                    const m = parts.find(p => p.type === 'month').value;
+                    return `${y}-${m}`;
+                } catch(e) {
+                    const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                }
+            };
+
+            // تنسيق اسم الشهر ليعرض رقمه
+            const formatMonthLabel = (mKey) => {
+                if(mKey === 'ALL') return 'جميع الأشهر';
+                const parts = mKey.split('-');
+                if(parts.length === 2) return `الشهر ${parts[1]} لعام ${parts[0]} هـ`;
+                return mKey;
+            };
+
+            state.activeMonth = getCurrentHijriMonth();
+
+            window.showToast = (msg, isError = false) => {
+                const t = document.getElementById('toast');
+                document.getElementById('toast-msg').innerText = msg;
+                document.getElementById('toast-icon').className = isError ? 'ph ph-warning-circle text-xl' : 'ph ph-check-circle text-xl';
+                t.className = `fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-xl text-sm font-bold text-white ${isError ? 'bg-rose-600' : 'bg-emerald-600'}`;
+                t.classList.remove('hidden');
+                setTimeout(() => { t.classList.add('hidden'); }, 3000);
+            };
+
+            window.appendPin = (num) => { document.getElementById('login-pin').value += num; };
+            window.clearPin = () => { document.getElementById('login-pin').value = ''; };
+            window.deletePin = () => { 
+                const el = document.getElementById('login-pin');
+                el.value = el.value.slice(0, -1); 
+            };
+
+            window.handleLogin = () => {
+                const pin = document.getElementById('login-pin').value.trim();
+                let user = state.members.find(m => m.pin === pin);
+                
+                // إجبار الرمز 0813 ليكون مدير بصلاحية كاملة دائماً وتجاهل أي حفظ قديم
+                if (pin === '0813' && (!user || user.role !== 'admin')) {
+                    user = { id: 'super_admin', name: 'مدير النظام', pin: '0813', role: 'admin' };
+                }
+
+                const errEl = document.getElementById('login-error');
+                
+                if(user) {
+                    state.currentUser = user;
+                    errEl.classList.add('hidden');
+                    document.getElementById('login-pin').value = '';
+                    window.showToast(`مرحباً بك ${user.name}`);
+                    document.getElementById('view-login').classList.add('hidden');
+                    document.getElementById('view-dashboard').classList.remove('hidden');
+                    document.getElementById('view-dashboard').classList.add('flex');
+                    document.getElementById('current-user-name').innerText = user.name;
+                    
+                    if(user.role === 'admin' || user.pin === '0813') {
+                        user.role = 'admin'; // تأكيد الصلاحية محلياً
+                        document.getElementById('nav-members').style.display = 'flex';
+                    } else {
+                        document.getElementById('nav-members').style.display = 'none';
+                    }
+                    
+                    window.switchTab('dashboard');
+                    updateMonthSelector();
+                } else {
+                    errEl.innerText = "الرمز غير صحيح!";
+                    errEl.classList.remove('hidden');
+                }
+            };
+
+            window.logout = () => {
+                state.currentUser = null;
+                document.getElementById('view-dashboard').classList.add('hidden');
+                document.getElementById('view-dashboard').classList.remove('flex');
+                document.getElementById('view-login').classList.remove('hidden');
+            };
+
+            window.switchTab = (tabId) => {
+                document.querySelectorAll('.app-section').forEach(el => el.classList.add('hidden'));
+                document.getElementById(`section-${tabId}`).classList.remove('hidden');
+                
+                document.querySelectorAll('.nav-btn').forEach(el => {
+                    el.classList.remove('text-emerald-600');
+                    el.classList.add('text-slate-400');
+                });
+                document.getElementById(`nav-${tabId}`).classList.add('text-emerald-600');
+                document.getElementById(`nav-${tabId}`).classList.remove('text-slate-400');
+
+                if(tabId === 'dashboard') window.renderDashboard();
+                if(tabId === 'records') window.renderRecords();
+                if(tabId === 'members') window.renderMembers();
+            };
+
+            const updateMonthSelector = () => {
+                const sel = document.getElementById('month-selector');
+                const prevVal = sel.value || state.activeMonth;
+                sel.innerHTML = '';
+                const months = new Set([getCurrentHijriMonth(), ...state.cases.map(c => c.month)]);
+                Array.from(months).sort().reverse().forEach(m => {
+                    sel.options.add(new Option(m === getCurrentHijriMonth() ? `الحالي (${formatMonthLabel(m)})` : formatMonthLabel(m), m));
+                });
+                sel.options.add(new Option('كل الأشهر', 'ALL'));
+                sel.value = prevVal;
+                state.activeMonth = prevVal;
+            };
+            
+            window.changeMonth = () => {
+                state.activeMonth = document.getElementById('month-selector').value;
+                window.renderDashboard();
+                if(!document.getElementById('section-records').classList.contains('hidden')) window.renderRecords();
+            };
+
+            window.handleSeizedChange = () => {
+                const val = document.getElementById('seized-type').value;
+                const otherInput = document.getElementById('seized-other');
+                if(val === 'أخرى') {
+                    otherInput.classList.remove('hidden');
+                    otherInput.required = true;
+                } else {
+                    otherInput.classList.add('hidden');
+                    otherInput.required = false;
+                }
+                const unitMap = {'حبوب كبتاجون':'حبة', 'برجبالين':'حبة', 'شبو':'جرام', 'حشيش':'جرام', 'قات':'كيلو'};
+                if(unitMap[val]) document.getElementById('case-unit').value = unitMap[val];
+            };
+
+            window.saveCase = async (e) => {
+                e.preventDefault();
+                const seizedBase = document.getElementById('seized-type').value;
+                const newCaseData = {
+                    caseNum: document.getElementById('case-num').value,
+                    caseType: document.getElementById('case-type').value,
+                    seizedType: seizedBase === 'أخرى' ? document.getElementById('seized-other').value : seizedBase,
+                    qty: document.getElementById('case-qty').value,
+                    unit: document.getElementById('case-unit').value,
+                    createdBy: state.currentUser.name,
+                    month: getCurrentHijriMonth(),
+                    ts: Date.now()
+                };
+
+                state.cases.unshift({ id: 'temp_' + Date.now(), ...newCaseData });
+                window.showToast("تم اعتماد القضية بنجاح");
+                e.target.reset();
+                document.getElementById('seized-other').classList.add('hidden');
+                window.switchTab('dashboard');
+                updateMonthSelector();
+
+                if (isCloudConnected) {
+                    try {
+                        const casesRef = collection(db, 'artifacts', artifactAppId, 'public', 'data', 'cases_records');
+                        await addDoc(casesRef, newCaseData);
+                    } catch (err) {}
+                }
+            };
+
+            window.renderDashboard = () => {
+                
+                // === جديد: حساب الإجمالي التراكمي لجميع الأشهر (ثابت لا يتصفر أبداً) ===
+                const allTimeTotals = { total: state.cases.length, units: { 'حبة': 0, 'جرام': 0, 'كيلو': 0 } };
+                state.cases.forEach(c => {
+                    allTimeTotals.units[c.unit] += Number(c.qty);
+                });
+                
+                // === حسابات الشهر المحدد للبطاقات السفلية ===
+                const filteredCases = state.activeMonth === 'ALL' ? state.cases : state.cases.filter(c => c.month === state.activeMonth);
+                const caseTypesGeneral = { 'حيازة': 0, 'ترويج': 0, 'استقبال': 0, 'نقل': 0, 'تفاوض': 0 };
+                const totals = { total: filteredCases.length, units: { 'حبة': 0, 'جرام': 0, 'كيلو': 0 } };
+                const bySeized = {};
+                let specialStats = {
+                    'حشيش_جرام': 0, 'حشيش_كيلو': 0,
+                    'قات_جرام': 0, 'قات_كيلو': 0,
+                    'كبتاجون_حبة': 0, 'برجبالين_حبة': 0
+                };
+                const memberStats = {};
+
+                filteredCases.forEach(c => {
+                    // تحديث عام للشهر
+                    totals.units[c.unit] += Number(c.qty);
+                    if (caseTypesGeneral[c.caseType] !== undefined) {
+                        caseTypesGeneral[c.caseType]++;
+                    }
+
+                    // تحديث المضبوطات
+                    if(!bySeized[c.seizedType]) bySeized[c.seizedType] = { count: 0, units: {'حبة':0, 'جرام':0, 'كيلو':0} };
+                    bySeized[c.seizedType].count++;
+                    bySeized[c.seizedType].units[c.unit] += Number(c.qty);
+
+                    // تحديث المؤشرات المحددة
+                    if (c.seizedType === 'حشيش' && c.unit === 'جرام') specialStats['حشيش_جرام'] += Number(c.qty);
+                    if (c.seizedType === 'حشيش' && c.unit === 'كيلو') specialStats['حشيش_كيلو'] += Number(c.qty);
+                    if (c.seizedType === 'قات' && c.unit === 'جرام') specialStats['قات_جرام'] += Number(c.qty);
+                    if (c.seizedType === 'قات' && c.unit === 'كيلو') specialStats['قات_كيلو'] += Number(c.qty);
+                    if (c.seizedType === 'حبوب كبتاجون' && c.unit === 'حبة') specialStats['كبتاجون_حبة'] += Number(c.qty);
+                    if (c.seizedType === 'برجبالين' && c.unit === 'حبة') specialStats['برجبالين_حبة'] += Number(c.qty);
+
+                    // تحديث إحصائية المدخل
+                    if (!memberStats[c.createdBy]) {
+                        memberStats[c.createdBy] = { total: 0, 'حيازة': 0, 'ترويج': 0, 'استقبال': 0, 'نقل': 0, 'تفاوض': 0 };
+                    }
+                    memberStats[c.createdBy].total++;
+                    if (memberStats[c.createdBy][c.caseType] !== undefined) {
+                        memberStats[c.createdBy][c.caseType]++;
+                    }
+                });
+
+                // 1. تحديث الكروت العلوية (التراكمي الثابت + الإحصائية العامة للشهر)
+                document.getElementById('stats-cards').innerHTML = `
+                    
+                    <!-- البطاقة الجديدة الثابتة: الإجمالي التراكمي لجميع الأشهر -->
+                    <div class="bg-gradient-to-l from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-3xl shadow-sm border border-slate-700 mb-6">
+                        <h4 class="font-extrabold text-sm mb-3 text-slate-200 flex items-center gap-1.5">
+                            <i class="ph ph-infinity text-emerald-400 text-lg"></i> 
+                            الإجمالي التراكمي الشامل لجميع الأشهر (ثابت لا يتصفر)
+                        </h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                            <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
+                                <div class="text-[10px] text-slate-300 font-bold mb-1">كل القضايا</div>
+                                <div class="font-extrabold text-2xl">${allTimeTotals.total}</div>
+                            </div>
+                            <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
+                                <div class="text-[10px] text-emerald-300 font-bold mb-1">مجموع (حبة)</div>
+                                <div class="font-extrabold text-xl sm:text-2xl">${formatQty(allTimeTotals.units['حبة'])}</div>
+                            </div>
+                            <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
+                                <div class="text-[10px] text-blue-300 font-bold mb-1">مجموع (جرام)</div>
+                                <div class="font-extrabold text-xl sm:text-2xl">${formatQty(allTimeTotals.units['جرام'])}</div>
+                            </div>
+                            <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
+                                <div class="text-[10px] text-amber-300 font-bold mb-1">مجموع (كيلو)</div>
+                                <div class="font-extrabold text-xl sm:text-2xl">${formatQty(allTimeTotals.units['كيلو'])}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- عنوان الفترة المحددة -->
+                    <div class="flex items-center gap-2 mb-3 mt-2 px-1">
+                        <i class="ph ph-calendar-check text-emerald-600 text-xl"></i>
+                        <h3 class="font-extrabold text-slate-800 text-sm">
+                            إحصائيات القضايا للفترة المحددة: (${state.activeMonth === 'ALL' ? 'جميع الأشهر' : formatMonthLabel(state.activeMonth)})
+                        </h3>
+                    </div>
+
+                    <!-- بطاقات إحصائيات الفترة المحددة (تتأثر بالتصفير) -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
+                        <div class="bg-emerald-50 text-emerald-900 p-3 rounded-2xl shadow-sm border border-emerald-200">
+                            <div class="text-[10px] text-emerald-600 font-bold mb-1">قضايا الشهر</div>
+                            <div class="text-2xl font-extrabold">${totals.total}</div>
+                        </div>
+                        <div class="bg-blue-50 text-blue-900 p-3 rounded-2xl shadow-sm border border-blue-200">
+                            <div class="text-[10px] text-blue-600 font-bold mb-1">إجمالي الحيازة</div>
+                            <div class="text-2xl font-extrabold">${caseTypesGeneral['حيازة']}</div>
+                        </div>
+                        <div class="bg-rose-50 text-rose-900 p-3 rounded-2xl shadow-sm border border-rose-200">
+                            <div class="text-[10px] text-rose-600 font-bold mb-1">إجمالي الترويج</div>
+                            <div class="text-2xl font-extrabold">${caseTypesGeneral['ترويج']}</div>
+                        </div>
+                        <div class="bg-purple-50 text-purple-900 p-3 rounded-2xl shadow-sm border border-purple-200">
+                            <div class="text-[10px] text-purple-600 font-bold mb-1">إجمالي الاستقبال</div>
+                            <div class="text-2xl font-extrabold">${caseTypesGeneral['استقبال']}</div>
+                        </div>
+                        <div class="bg-amber-50 text-amber-900 p-3 rounded-2xl shadow-sm border border-amber-200">
+                            <div class="text-[10px] text-amber-600 font-bold mb-1">إجمالي النقل</div>
+                            <div class="text-2xl font-extrabold">${caseTypesGeneral['نقل']}</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-emerald-800 p-4 rounded-2xl shadow-sm text-white mb-2">
+                        <h4 class="font-extrabold text-sm mb-3 text-emerald-100 flex items-center gap-1.5"><i class="ph ph-star-fill text-amber-400"></i> مؤشرات هامة (حسب النوع والوحدة)</h4>
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+                            <div class="bg-white/10 p-2 rounded-xl border border-white/20"><div class="text-[10px] text-emerald-200 mb-1">حبة كبتاجون</div><div class="font-extrabold text-sm sm:text-base">${formatQty(specialStats['كبتاجون_حبة'])}</div></div>
+                            <div class="bg-white/10 p-2 rounded-xl border border-white/20"><div class="text-[10px] text-emerald-200 mb-1">حبة برجبالين</div><div class="font-extrabold text-sm sm:text-base">${formatQty(specialStats['برجبالين_حبة'])}</div></div>
+                            <div class="bg-white/10 p-2 rounded-xl border border-white/20"><div class="text-[10px] text-emerald-200 mb-1">جرام حشيش</div><div class="font-extrabold text-sm sm:text-base">${formatQty(specialStats['حشيش_جرام'])}</div></div>
+                            <div class="bg-white/10 p-2 rounded-xl border border-white/20"><div class="text-[10px] text-emerald-200 mb-1">كيلو حشيش</div><div class="font-extrabold text-sm sm:text-base">${formatQty(specialStats['حشيش_كيلو'])}</div></div>
+                            <div class="bg-white/10 p-2 rounded-xl border border-white/20"><div class="text-[10px] text-emerald-200 mb-1">جرام قات</div><div class="font-extrabold text-sm sm:text-base">${formatQty(specialStats['قات_جرام'])}</div></div>
+                            <div class="bg-white/10 p-2 rounded-xl border border-white/20"><div class="text-[10px] text-emerald-200 mb-1">كيلو قات</div><div class="font-extrabold text-sm sm:text-base">${formatQty(specialStats['قات_كيلو'])}</div></div>
+                        </div>
+                    </div>
+                `;
+
+                // 2. تحديث إحصائية كل فرد
+                let memberHtml = '';
+                // ترتيب الأعضاء حسب عدد القضايا
+                const sortedMembers = Object.entries(memberStats).sort((a, b) => b[1].total - a[1].total);
+                
+                for(const [name, data] of sortedMembers) {
+                    memberHtml += `
+                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-3">
+                        <div class="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="ph ph-user-circle text-emerald-600 text-2xl"></i> ${name}
+                        </div>
+                        <div class="grid grid-cols-5 gap-1.5 text-center text-[10px] sm:text-xs font-bold">
+                            <div class="bg-white border rounded-lg py-2 shadow-sm">
+                                إجمالي<br><span class="text-base sm:text-lg font-black text-slate-700">${data.total}</span>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-100 rounded-lg py-2 text-blue-800 shadow-sm">
+                                حيازة<br><span class="text-base sm:text-lg font-black">${data['حيازة']}</span>
+                            </div>
+                            <div class="bg-rose-50 border border-rose-100 rounded-lg py-2 text-rose-800 shadow-sm">
+                                ترويج<br><span class="text-base sm:text-lg font-black">${data['ترويج']}</span>
+                            </div>
+                            <div class="bg-purple-50 border border-purple-100 rounded-lg py-2 text-purple-800 shadow-sm">
+                                استقبال<br><span class="text-base sm:text-lg font-black">${data['استقبال']}</span>
+                            </div>
+                            <div class="bg-amber-50 border border-amber-100 rounded-lg py-2 text-amber-800 shadow-sm">
+                                نقل<br><span class="text-base sm:text-lg font-black">${data['نقل']}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+                document.getElementById('member-stats-container').innerHTML = memberHtml || '<div class="text-xs text-slate-400 text-center py-4 font-bold">لم يتم تسجيل قضايا بعد</div>';
+            };
+
+            window.renderRecords = () => {
+                const query = document.getElementById('search-input').value.toLowerCase();
+                let filtered = state.activeMonth === 'ALL' ? state.cases : state.cases.filter(c => c.month === state.activeMonth);
+                if(query) {
+                    filtered = filtered.filter(c => c.caseNum.toLowerCase().includes(query) || c.seizedType.toLowerCase().includes(query) || c.createdBy.toLowerCase().includes(query));
+                }
+
+                let html = filtered.map(c => {
+                    let dateStr = '';
+                    if (c.ts) {
+                        try {
+                            dateStr = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(c.ts));
+                        } catch(e) {
+                            dateStr = new Date(c.ts).toLocaleString('ar-SA');
+                        }
+                    }
+                    
+                    return `
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center text-sm shadow-sm">
+                        <div>
+                            <div class="font-extrabold text-slate-900 mb-1">#${c.caseNum} <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border ml-1 text-slate-500">${c.caseType}</span></div>
+                            <div class="text-sm text-emerald-700 font-extrabold">${formatQty(c.qty)} ${c.unit} <span class="text-slate-500 text-xs">(${c.seizedType})</span></div>
+                            <div class="text-xs text-slate-400 mt-1.5 font-bold flex flex-wrap items-center gap-1.5">
+                                <span>المدخل: <strong class="text-slate-600">${c.createdBy}</strong></span>
+                                ${dateStr ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-lg border text-slate-500" dir="rtl"><i class="ph ph-calendar-blank ml-1"></i>${dateStr}</span>` : ''}
+                            </div>
+                        </div>
+                        ${(state.currentUser.role === 'admin') ? `
+                        <button onclick="window.deleteItem('case', '${c.id}')" class="p-2 bg-rose-50 text-rose-600 rounded-lg"><i class="ph ph-trash text-lg"></i></button>
+                        ` : ''}
+                    </div>
+                `}).join('');
+                document.getElementById('records-container').innerHTML = html || '<div class="text-center py-6 text-sm text-slate-400 font-bold">السجل فارغ</div>';
+            };
+
+            window.renderMembers = () => {
+                let html = state.members.map(m => `
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center shadow-sm">
+                        <div>
+                            <div class="font-extrabold text-slate-900 mb-1">${m.name} <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border text-slate-500 font-bold">${m.role === 'admin' ? 'المدير' : 'عضو'}</span></div>
+                            <div class="text-sm text-emerald-700 font-mono tracking-widest font-extrabold bg-emerald-50 inline-block px-2 py-0.5 rounded border border-emerald-100">الرمز: ${m.pin}</div>
+                        </div>
+                        ${state.members.length > 1 ? `<button onclick="window.deleteItem('member', '${m.id}')" class="p-2 bg-rose-50 text-rose-600 rounded-lg"><i class="ph ph-trash text-lg"></i></button>` : ''}
+                    </div>
+                `).join('');
+                document.getElementById('members-container').innerHTML = html;
+            };
+
+            window.openAddMember = async () => {
+                const nameDiv = document.createElement('div');
+                nameDiv.className = "fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm";
+                nameDiv.innerHTML = `
+                    <div class="bg-white p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl">
+                        <h3 class="font-extrabold text-slate-800 text-lg border-b border-slate-100 pb-3">إضافة عضو وتحديد الصلاحية</h3>
+                        
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1.5">اسم العضو:</label>
+                            <input type="text" id="new-mem-name" placeholder="مثال: محمد" class="w-full border-2 border-slate-200 p-3 rounded-xl outline-none font-bold focus:border-emerald-500 transition">
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1.5">رمز الدخول الخاص به:</label>
+                            <input type="text" id="new-mem-pin" placeholder="أدخل أرقاماً (مثال: 1234)" class="w-full border-2 border-slate-200 p-3 rounded-xl outline-none font-extrabold text-center tracking-widest focus:border-emerald-500 transition">
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1.5">نوع الصلاحية:</label>
+                            <select id="new-mem-role" class="w-full border-2 border-slate-200 p-3 rounded-xl outline-none font-bold focus:border-emerald-500 transition bg-white">
+                                <option value="member">عضو (إدخال وعرض البيانات)</option>
+                                <option value="admin">مدير (إدارة كاملة للأعضاء)</option>
+                            </select>
+                        </div>
+
+                        <div class="flex gap-2 pt-2">
+                            <button id="btn-save-mem" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl font-extrabold transition">اعتماد العضو</button>
+                            <button id="btn-cancel-mem" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 p-3 rounded-xl font-extrabold transition">إلغاء</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(nameDiv);
+
+                document.getElementById('btn-cancel-mem').onclick = () => nameDiv.remove();
+                document.getElementById('btn-save-mem').onclick = async () => {
+                    const name = document.getElementById('new-mem-name').value.trim();
+                    const pin = document.getElementById('new-mem-pin').value.trim();
+                    const role = document.getElementById('new-mem-role').value;
+                    
+                    if(!name || !pin) {
+                        window.showToast("يرجى تعبئة الاسم والرمز!", true);
+                        return;
+                    }
+                    
+                    const newMem = { name, pin, role, ts: Date.now() };
+                    
+                    state.members.push({ id: 'temp_' + Date.now(), ...newMem });
+                    window.renderMembers();
+                    window.showToast(`تمت إضافة ${name} بنجاح`);
+                    nameDiv.remove();
+
+                    if (isCloudConnected) {
+                        const membersRef = collection(db, 'artifacts', artifactAppId, 'public', 'data', 'team_members');
+                        await addDoc(membersRef, newMem);
+                    }
+                };
+            };
+
+            window.deleteItem = async (type, id) => {
+                // حذف بدون confirm
+                if(type === 'case') {
+                    state.cases = state.cases.filter(c => c.id !== id);
+                    window.renderRecords();
+                    window.renderDashboard();
+                } else {
+                    state.members = state.members.filter(m => m.id !== id);
+                    window.renderMembers();
+                }
+                window.showToast("تم الحذف بنجاح");
+
+                if(isCloudConnected && !id.startsWith('temp_')) {
+                    const colName = type === 'case' ? 'cases_records' : 'team_members';
+                    await deleteDoc(doc(db, 'artifacts', artifactAppId, 'public', 'data', colName, id));
+                }
+            };
+
+            // تشغيل الاتصال السحابي
+            const connectCloud = async () => {
+                try {
+                    await signInAnonymously(auth);
+                    isCloudConnected = true;
+                    document.getElementById('cloud-status').classList.remove('bg-rose-500');
+                    document.getElementById('cloud-status').classList.add('bg-emerald-400');
+                    
+                    const membersRef = collection(db, 'artifacts', artifactAppId, 'public', 'data', 'team_members');
+                    const casesRef = collection(db, 'artifacts', artifactAppId, 'public', 'data', 'cases_records');
+
+                    onSnapshot(membersRef, async (snap) => {
+                        const cloudMembers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                        if (cloudMembers.length === 0) {
+                            // إذا كانت القاعدة فارغة تماماً، نضيف المدير الافتراضي للسحابة فوراً
+                            const defaultAdmin = { name: 'مدير النظام', pin: '0813', role: 'admin', ts: Date.now() };
+                            try { await addDoc(membersRef, defaultAdmin); } catch(e) {}
+                            state.members = [{ id: 'admin_temp', ...defaultAdmin }];
+                        } else {
+                            // إجبار النظام على منح صلاحية المدير لرمز 0813 دائماً
+                            state.members = cloudMembers.map(m => m.pin === '0813' ? { ...m, role: 'admin' } : m).sort((a,b) => (a.ts||0) - (b.ts||0));
+                        }
+                        
+                        // تحديث واجهة المستخدم المتصل حالياً 
+                        if (state.currentUser) {
+                            const me = state.members.find(m => m.pin === state.currentUser.pin);
+                            if (me) {
+                                state.currentUser = me;
+                                if (me.role === 'admin') {
+                                    document.getElementById('nav-members').style.display = 'flex';
+                                } else {
+                                    document.getElementById('nav-members').style.display = 'none';
+                                    if (!document.getElementById('section-members').classList.contains('hidden')) window.switchTab('dashboard');
+                                }
+                            }
+                        }
+
+                        if(document.getElementById('section-members') && !document.getElementById('section-members').classList.contains('hidden')) window.renderMembers();
+                    });
+
+                    onSnapshot(casesRef, (snap) => {
+                        const cloudCases = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                        state.cases = cloudCases.sort((a,b) => (b.ts||0) - (a.ts||0));
+                        updateMonthSelector();
+                        
+                        if(!document.getElementById('section-dashboard').classList.contains('hidden')) window.renderDashboard();
+                        if(!document.getElementById('section-records').classList.contains('hidden')) window.renderRecords();
+                    });
+
+                } catch (error) {
+                    document.getElementById('cloud-status').classList.add('bg-rose-500'); 
+                    window.showToast("التطبيق يعمل محلياً الآن (مؤقتاً)", true);
+                }
+            };
+            connectCloud();
+
+        } catch(e) {
+            // في حال وجود أي خطأ في الكود أو حجب في الجوال، سيظهر هنا بدلاً من الشاشة السوداء!
+            document.getElementById('safe-boot-screen').style.display = 'flex';
+            document.getElementById('app-wrapper').classList.add('hidden');
+            const errDiv = document.getElementById('boot-error-log');
+            errDiv.style.display = 'block';
+            errDiv.innerText = "حدث خطأ يمنع التشغيل: " + e.message;
+        }
+    </script>
+</body>
+</html>
